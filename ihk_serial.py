@@ -3,6 +3,8 @@
 from utils import load_config, save_config
 from serial_ports import serial_ports
 import serial
+import threading
+import queue 
 from bcolors import bcolors
 
 CONFIG_FILENAME = './config.yml'
@@ -10,6 +12,44 @@ CONFIG_FILENAME = './config.yml'
 ERR_IHK_SERIAL_OK = 0
 ERR_IHK_SERIAL_NO_FRAME = -1
 
+class SerialThread(threading.Thread):
+    def __init__(self, queue):
+        threading.Thread.__init__(self)
+        self.queue = queue
+
+        self.config = load_config(CONFIG_FILENAME)
+        self.port = self.config['comport']
+        self.debit = self.config['baudrate']
+        self.debug = False
+        if (self.config['debug']):
+            self.debug = True
+        self.serialPort = serial.Serial(self.port,self.debit)
+        
+    def save_configuration(self) :
+        self.config['debug'] = False
+        if (self.debug) :
+            self.config['debug'] = True
+        save_config(self.config, CONFIG_FILENAME)
+        return("Configuration saved")
+        
+
+    def run(self):
+#        self.serialPort.write(str.encode('help\n'))
+#        time.sleep(0.2)
+        while True:
+            if self.serialPort.inWaiting():
+#                text = self.serialPort.readline(self.serialPort.inWaiting())
+                try:
+                    text = self.serialPort.readline(self.serialPort.inWaiting()).decode("utf-8")
+                except :
+                    print("Error reading Line\n")
+                    continue    
+                text = text.replace("\r","\r\n")
+                self.queue.put(text)
+                
+    def send_frame(self, s):
+        self.serialPort.write(str.encode(s + "\n\r"))
+        
 class IHK_Serial(object):
 
     def __init__(self) :
@@ -48,6 +88,20 @@ class IHK_Serial(object):
             self.config['comport'] = self.port
             save_config(self.config, CONFIG_FILENAME)
             print("Configuration saved")
+            
+    def open(self):        
+        self.serialPort = serial.Serial(self.port, self.debit, timeout=0)
+        
+    def read_frame(self):
+        ret = dict([('err', ERR_IHK_SERIAL_NO_FRAME), ('str', "")])
+        
+        ret['err'] = ERR_IHK_SERIAL_NO_FRAME
+        line = self.serialPort.read(128)
+        for i in range(len(line)) :
+            ret['str'] = ret['str'] + chr(line[i])
+
+    def write_frame(self, str):
+        self.serialPort.write(str.encode(str + "\n"))
             
     def send_frame(self, str, timeout=0.1, display_received_data = False):
         str_serial = []
