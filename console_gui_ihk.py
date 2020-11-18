@@ -6,6 +6,7 @@ import threading
 import queue
 
 DEBUG = 0
+DEBUG_NO_COMM = True
 
 class Console_GUI_IHK(tk.Tk):
     def __init__(self) :
@@ -19,28 +20,32 @@ class Console_GUI_IHK(tk.Tk):
 #================================================================
         self.l_actions = tk.LabelFrame(self, text="Actions")
         self.l_actions.pack(fill=tk.BOTH, expand=tk.YES)
-                 
-        self.button =  [0 for x in range(5)]
-        self.listbox =  [0 for x in range(5)]
-        self.entry =  [0 for x in range(5)]
+             
+                         # Vertical (y) Scroll Bar
+        self.scroll_actions = tk.Scrollbar(self.l_actions)
+        self.scroll_actions.pack(side=tk.RIGHT, fill=tk.Y)
+
+        self.button =  [0 for x in range(10)]
+        self.listbox =  [0 for x in range(10)]
+        self.entry =  [0 for x in range(10)]
         
         # Create a Tkinter variable
-        self.tkvar = [tk.StringVar(self) for x in range(5)]          
+        self.tkvar = [tk.StringVar(self) for x in range(10)]          
         self.choices = { 'Pizza','Lasagne','Fries','Fish','Potatoe'}
         
-        for i in range(5) :
+        for i in range(10) :
             self.button[i] = tk.Button(self.l_actions,text=str(i+1))
 #            self.button[i] = Button(self.l_actions,text=str(i+1))
-            self.button[i].grid(row=i, column=0)
-        
+            self.button[i].pack()
+         
             # Dictionary with options
             self.tkvar[i].set("Pizza") # set the default option
-
+ 
             self.listbox[i] = tk.OptionMenu(self.l_actions,self.tkvar[i],*self.choices)
-            self.listbox[i].grid(row=i, column=1)
-        
+            self.listbox[i].pack()
+         
             self.entry[i] = tk.Entry(self.l_actions,width = 50)
-            self.entry[i].grid(row=i, column=3)
+            self.entry[i].pack()
 
 #================================================================
 # LabelFrame Activite        
@@ -101,9 +106,10 @@ class Console_GUI_IHK(tk.Tk):
  
         self.queue = queue.Queue()
         
-        self.readThread = SerialThread(self.queue)
-        self.readThread.start()
-        self.processConsole()        
+        if not DEBUG_NO_COMM :
+            self.readThread = SerialThread(self.queue)
+            self.readThread.start()
+            self.processConsole()        
  
     def processConsole(self) :
         while self.queue.qsize():

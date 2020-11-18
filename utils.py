@@ -6,8 +6,8 @@ import yaml
 def load_config(filename):
     """Load configuration from a yaml file"""
     with open(filename) as f:
-        return yaml.load(f,Loader=yaml.FullLoader)
-#        return yaml.load(f)
+#        return yaml.load(f,Loader=yaml.FullLoader)
+        return yaml.load(f)
 
 def save_config(config, filename):
     """Save configuration to a yaml file"""
