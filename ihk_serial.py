@@ -9,6 +9,8 @@ from bcolors import bcolors
 
 CONFIG_FILENAME = './config.yml'
 
+DEBUG_NO_COMM = True
+
 ERR_IHK_SERIAL_OK = 0
 ERR_IHK_SERIAL_NO_FRAME = -1
 
@@ -23,7 +25,8 @@ class SerialThread(threading.Thread):
         self.debug = False
         if (self.config['debug']):
             self.debug = True
-        self.serialPort = serial.Serial(self.port,self.debit)
+        if not DEBUG_NO_COMM :
+            self.serialPort = serial.Serial(self.port,self.debit)
         
     def save_configuration(self) :
         self.config['debug'] = False
@@ -37,18 +40,20 @@ class SerialThread(threading.Thread):
 #        self.serialPort.write(str.encode('help\n'))
 #        time.sleep(0.2)
         while True:
-            if self.serialPort.inWaiting():
-#                text = self.serialPort.readline(self.serialPort.inWaiting())
-                try:
-                    text = self.serialPort.readline(self.serialPort.inWaiting()).decode("utf-8")
-                except :
-                    print("Error reading Line\n")
-                    continue    
-                text = text.replace("\r","\r\n")
-                self.queue.put(text)
+            if not DEBUG_NO_COMM :
+                if self.serialPort.inWaiting():
+    #                text = self.serialPort.readline(self.serialPort.inWaiting())
+                    try:
+                        text = self.serialPort.readline(self.serialPort.inWaiting()).decode("utf-8")
+                    except :
+                        print("Error reading Line\n")
+                        continue    
+                    text = text.replace("\r","\r\n")
+                    self.queue.put(text)
                 
     def send_frame(self, s):
-        self.serialPort.write(str.encode(s + "\n\r"))
+        if not DEBUG_NO_COMM :
+            self.serialPort.write(str.encode(s + "\n\r"))
         
 class IHK_Serial(object):
 

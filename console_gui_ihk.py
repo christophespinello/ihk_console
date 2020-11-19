@@ -4,9 +4,12 @@ import tkinter as tk
 from ihk_serial import SerialThread
 import threading
 import queue
+import json
+import time
+
+JSON_FILENAME = "./ihk_tests.json"
 
 DEBUG = 0
-DEBUG_NO_COMM = True
 
 class Console_GUI_IHK(tk.Tk):
     def __init__(self) :
@@ -14,38 +17,28 @@ class Console_GUI_IHK(tk.Tk):
         
 #        self.root = tk.Tk() # Création de la fenêtre racine
         self.title('ConsoleGUI')
-        
+
+        self.json_filename = JSON_FILENAME
+    
+        with open(self.json_filename, 'r') as f:
+            self.macros = json.load(f)      
+            
 #================================================================
 # LabelFrame Actions        
 #================================================================
         self.l_actions = tk.LabelFrame(self, text="Actions")
         self.l_actions.pack(fill=tk.BOTH, expand=tk.YES)
              
-                         # Vertical (y) Scroll Bar
+# Vertical (y) Scroll Bar
         self.scroll_actions = tk.Scrollbar(self.l_actions)
         self.scroll_actions.pack(side=tk.RIGHT, fill=tk.Y)
+        
+# Liste des macros        
+        self.listbox = tk.Listbox(self.l_actions)
+        self.listbox.pack(fill=tk.X)
 
-        self.button =  [0 for x in range(10)]
-        self.listbox =  [0 for x in range(10)]
-        self.entry =  [0 for x in range(10)]
-        
-        # Create a Tkinter variable
-        self.tkvar = [tk.StringVar(self) for x in range(10)]          
-        self.choices = { 'Pizza','Lasagne','Fries','Fish','Potatoe'}
-        
-        for i in range(10) :
-            self.button[i] = tk.Button(self.l_actions,text=str(i+1))
-#            self.button[i] = Button(self.l_actions,text=str(i+1))
-            self.button[i].pack()
-         
-            # Dictionary with options
-            self.tkvar[i].set("Pizza") # set the default option
- 
-            self.listbox[i] = tk.OptionMenu(self.l_actions,self.tkvar[i],*self.choices)
-            self.listbox[i].pack()
-         
-            self.entry[i] = tk.Entry(self.l_actions,width = 50)
-            self.entry[i].pack()
+        for macro in self.macros :
+            self.listbox.insert(tk.END,macro['command'] + "(" + macro['description'] + ")")
 
 #================================================================
 # LabelFrame Activite        
@@ -85,6 +78,7 @@ class Console_GUI_IHK(tk.Tk):
         self.textzone.tag_config('send', foreground="blue")
         self.textzone.tag_config('receive', foreground="green")
         self.textzone.tag_config('comment', foreground="black")
+        self.textzone.tag_config('error', foreground="red")
         
 #================================================================
 # LabelFrame Commande        
@@ -106,11 +100,10 @@ class Console_GUI_IHK(tk.Tk):
  
         self.queue = queue.Queue()
         
-        if not DEBUG_NO_COMM :
-            self.readThread = SerialThread(self.queue)
-            self.readThread.start()
-            self.processConsole()        
- 
+        self.readThread = SerialThread(self.queue)
+        self.readThread.start()
+        self.processConsole()  
+            
     def processConsole(self) :
         while self.queue.qsize():
             try:
@@ -122,10 +115,32 @@ class Console_GUI_IHK(tk.Tk):
         self.after(100, self.processConsole)
       
     def send(self):
-        self.readThread.send_frame(self.entry.get())
-        self.textzone.insert(tk.END,self.entry.get() + "\n","send")
+        if self.entry.get() == "":
+            if len(self.listbox.curselection()) == 0 :
+                self.textzone.insert(tk.END,"No command to send" + "\n","error")
+            else :
+                self.send_macro(self.listbox.curselection()[0])
+        else :
+            self.readThread.send_frame(self.entry.get())
+            self.textzone.insert(tk.END,self.entry.get() + "\n","send")
         self.entry.delete(0, tk.END)
         
+    def send_macro(self,index):
+        i = 0
+        for macro in self.macros :
+            if (i == index) :
+                self.textzone.insert(tk.END,"Macro " + macro['command'] + "\n","comment")
+                for action in macro['action'] :
+                    if (action[:5] == "SLEEP") :
+                        time.sleep(int(action[6:]))
+                        self.textzone.insert(tk.END,action + "\n","comment")
+                    else :                                                
+                        self.readThread.send_frame(action)
+                        self.textzone.insert(tk.END,action + "\n","send")
+            i = i+1
+        
+        
+            
     def event_key_return(self,event):
         self.send()
         
